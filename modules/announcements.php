@@ -16,18 +16,25 @@ if ($canManage && is_post()) {
     $imagePath = null;
 
     if (!empty($_FILES['image']['name'])) {
-        $allowed = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/gif' => 'gif'];
-        $type = mime_content_type($_FILES['image']['tmp_name']);
-        if (isset($allowed[$type])) {
-            $filename = uniqid('announcement_') . '.' . $allowed[$type];
-            $destination = $uploadDir . DIRECTORY_SEPARATOR . $filename;
-            if (move_uploaded_file($_FILES['image']['tmp_name'], $destination)) {
-                $imagePath = 'uploads/announcements/' . $filename;
+        $maxSize = 2 * 1024 * 1024; // 2MB
+        if ($_FILES['image']['size'] > $maxSize) {
+            $error = 'La imagen no debe superar 2MB.';
+        } else {
+            $allowed = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/gif' => 'gif'];
+            $type = mime_content_type($_FILES['image']['tmp_name']);
+            if (isset($allowed[$type])) {
+                $filename = uniqid('announcement_') . '.' . $allowed[$type];
+                $destination = $uploadDir . DIRECTORY_SEPARATOR . $filename;
+                if (move_uploaded_file($_FILES['image']['tmp_name'], $destination)) {
+                    $imagePath = 'uploads/announcements/' . $filename;
+                }
+            } else {
+                $error = 'Solo se permiten imágenes JPG, PNG o GIF.';
             }
         }
     }
 
-    if ($title && $content) {
+    if ($title && $content && !isset($error)) {
         if ($id) {
             $payload = ['title' => $title, 'content' => $content, 'id' => $id];
             if ($imagePath) {
@@ -48,13 +55,13 @@ if ($canManage && is_post()) {
             ]);
             $message = 'Anuncio publicado.';
         }
-    } else {
+    } elseif (!isset($error)) {
         $error = 'El título y contenido son obligatorios.';
     }
 }
 
-if ($canManage && isset($_GET['action'], $_GET['id']) && verify_csrf($_GET['token'] ?? '')) {
-    if ($_GET['action'] === 'delete') {
+if ($canManage && isset($_GET['action'], $_GET['id'])) {
+    if ($_GET['action'] === 'delete' && verify_csrf($_GET['token'] ?? '')) {
         $stmt = $conn->prepare('SELECT image_path FROM announcements WHERE id = :id');
         $stmt->execute(['id' => $_GET['id']]);
         $row = $stmt->fetch();
@@ -64,7 +71,7 @@ if ($canManage && isset($_GET['action'], $_GET['id']) && verify_csrf($_GET['toke
         $stmt = $conn->prepare('DELETE FROM announcements WHERE id = :id');
         $stmt->execute(['id' => $_GET['id']]);
         $message = 'Anuncio eliminado.';
-    } elseif ($_GET['action'] === 'edit') {
+    } elseif ($_GET['action'] === 'edit' && verify_csrf($_GET['token'] ?? '')) {
         $stmt = $conn->prepare('SELECT * FROM announcements WHERE id = :id');
         $stmt->execute(['id' => $_GET['id']]);
         $editing = $stmt->fetch();
@@ -99,7 +106,7 @@ $announcements = $conn->query('SELECT announcements.*, users.name AS author FROM
                         <small class="text-muted">Puedes usar <strong>negritas</strong> usando etiquetas HTML.</small>
                     </div>
                     <div>
-                        <label class="form-label">Imagen (opcional)</label>
+                        <label class="form-label">Imagen (opcional, máx 2MB)</label>
                         <input type="file" name="image" class="form-control" accept="image/*">
                         <?php if (!empty($editing['image_path'])): ?>
                             <img src="<?php echo htmlspecialchars(base_url($editing['image_path'])); ?>" alt="Previsualización" class="img-fluid rounded mt-2">
@@ -125,13 +132,13 @@ $announcements = $conn->query('SELECT announcements.*, users.name AS author FROM
                             </div>
                             <?php if ($canManage): ?>
                                 <div class="d-flex gap-2">
-                                    <a href="?module=announcements&action=edit&id=<?php echo $item['id']; ?>" class="btn btn-sm btn-outline-primary">Editar</a>
+                                    <a href="?module=announcements&action=edit&id=<?php echo $item['id']; ?>&token=<?php echo csrf_token(); ?>" class="btn btn-sm btn-outline-primary">Editar</a>
                                     <a href="?module=announcements&action=delete&id=<?php echo $item['id']; ?>&token=<?php echo csrf_token(); ?>" class="btn btn-sm btn-outline-danger" onclick="return confirm('¿Eliminar anuncio?');">Eliminar</a>
                                 </div>
                             <?php endif; ?>
                         </div>
                         <div class="mt-3">
-                            <p><?php echo nl2br($item['content']); ?></p>
+                            <p><?php echo nl2br(htmlspecialchars($item['content'])); ?></p>
                         </div>
                         <?php if (!empty($item['image_path'])): ?>
                             <img src="<?php echo htmlspecialchars(base_url($item['image_path'])); ?>" alt="Imagen del anuncio" class="img-fluid rounded mt-2">

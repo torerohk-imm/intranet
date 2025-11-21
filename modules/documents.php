@@ -57,20 +57,25 @@ if ($canManage && is_post()) {
     } elseif (isset($_POST['upload_document'])) {
         $folderId = (int)($_POST['folder_id'] ?? 0);
         if ($folderId && !empty($_FILES['file']['name'])) {
-            $filename = $_FILES['file']['name'];
-            $safeName = uniqid('doc_') . '_' . preg_replace('/[^A-Za-z0-9_\.-]/', '_', $filename);
-            $destination = $uploadDir . DIRECTORY_SEPARATOR . $safeName;
-            if (move_uploaded_file($_FILES['file']['tmp_name'], $destination)) {
-                $stmt = $conn->prepare('INSERT INTO documents (folder_id, name, file_path, uploaded_by) VALUES (:folder_id, :name, :file_path, :uploaded_by)');
-                $stmt->execute([
-                    'folder_id' => $folderId,
-                    'name' => $filename,
-                    'file_path' => 'uploads/documents/' . $safeName,
-                    'uploaded_by' => $user['id'],
-                ]);
-                $message = 'Archivo cargado correctamente.';
+            $maxSize = 10 * 1024 * 1024; // 10MB
+            if ($_FILES['file']['size'] > $maxSize) {
+                $error = 'El archivo no debe superar 10MB.';
             } else {
-                $error = 'No fue posible subir el archivo.';
+                $filename = $_FILES['file']['name'];
+                $safeName = uniqid('doc_') . '_' . preg_replace('/[^A-Za-z0-9_\\.-]/', '_', $filename);
+                $destination = $uploadDir . DIRECTORY_SEPARATOR . $safeName;
+                if (move_uploaded_file($_FILES['file']['tmp_name'], $destination)) {
+                    $stmt = $conn->prepare('INSERT INTO documents (folder_id, name, file_path, uploaded_by) VALUES (:folder_id, :name, :file_path, :uploaded_by)');
+                    $stmt->execute([
+                        'folder_id' => $folderId,
+                        'name' => $filename,
+                        'file_path' => 'uploads/documents/' . $safeName,
+                        'uploaded_by' => $user['id'],
+                    ]);
+                    $message = 'Archivo cargado correctamente.';
+                } else {
+                    $error = 'No fue posible subir el archivo.';
+                }
             }
         }
     }
@@ -144,7 +149,7 @@ function renderFolderTree($parentId, $foldersByParent, $permissionsByFolder, $us
     echo '</ul>';
 }
 
-$currentFolderId = isset($_GET['folder']) ? (int)$_GET['folder'] : ($folders[0]['id'] ?? 0);
+$currentFolderId = isset($_GET['folder']) ? (int)$_GET['folder'] : (isset($folders[0]) ? $folders[0]['id'] : 0);
 if ($currentFolderId && !folderIsAccessible($currentFolderId, $permissionsByFolder, $user)) {
     $currentFolderId = 0;
 }

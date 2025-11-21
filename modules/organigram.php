@@ -29,21 +29,28 @@ if ($canManage && is_post()) {
         ];
         $photo = null;
         if (!empty($_FILES['photo']['name'])) {
-            $allowed = ['image/jpeg' => 'jpg', 'image/png' => 'png'];
-            $type = mime_content_type($_FILES['photo']['tmp_name']);
-            if (isset($allowed[$type])) {
-                $filename = uniqid('avatar_') . '.' . $allowed[$type];
-                $destination = $uploadDir . DIRECTORY_SEPARATOR . $filename;
-                if (move_uploaded_file($_FILES['photo']['tmp_name'], $destination)) {
-                    $photo = 'uploads/avatars/' . $filename;
+            $maxSize = 1 * 1024 * 1024; // 1MB
+            if ($_FILES['photo']['size'] > $maxSize) {
+                $error = 'La foto no debe superar 1MB.';
+            } else {
+                $allowed = ['image/jpeg' => 'jpg', 'image/png' => 'png'];
+                $type = mime_content_type($_FILES['photo']['tmp_name']);
+                if (isset($allowed[$type])) {
+                    $filename = uniqid('avatar_') . '.' . $allowed[$type];
+                    $destination = $uploadDir . DIRECTORY_SEPARATOR . $filename;
+                    if (move_uploaded_file($_FILES['photo']['tmp_name'], $destination)) {
+                        $photo = 'uploads/avatars/' . $filename;
+                    }
+                } else {
+                    $error = 'Solo se permiten imágenes JPG o PNG.';
                 }
             }
         }
-        if ($payload['name']) {
+        if ($payload['name'] && !isset($error)) {
             $stmt = $conn->prepare('INSERT INTO org_members (name, job_title, email, unit_id, manager_id, photo_path) VALUES (:name, :job_title, :email, :unit_id, :manager_id, :photo_path)');
             $stmt->execute($payload + ['photo_path' => $photo]);
             $message = 'Colaborador agregado.';
-        } else {
+        } elseif (!isset($error)) {
             $error = 'El nombre del colaborador es obligatorio.';
         }
     }

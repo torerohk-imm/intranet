@@ -12,25 +12,34 @@ if ($canManage && is_post()) {
 
     if (isset($_POST['import_csv']) && isset($_FILES['csv_file'])) {
         $file = $_FILES['csv_file']['tmp_name'];
-        if (($handle = fopen($file, 'r')) !== false) {
+        $fileType = mime_content_type($file);
+        $allowedTypes = ['text/plain', 'text/csv', 'application/csv', 'text/x-csv', 'application/x-csv'];
+        
+        if (!in_array($fileType, $allowedTypes, true) && pathinfo($_FILES['csv_file']['name'], PATHINFO_EXTENSION) !== 'csv') {
+            $error = 'Solo se permiten archivos CSV.';
+        } elseif (($handle = fopen($file, 'r')) !== false) {
             // Skip header
             fgetcsv($handle, 1000, ',');
             $stmt = $conn->prepare('INSERT INTO contacts (name, job_title, email, phone, extension, created_by) VALUES (:name, :job_title, :email, :phone, :extension, :user_id)');
+            $imported = 0;
             while (($data = fgetcsv($handle, 1000, ',')) !== false) {
-                if (count($data) < 5) {
+                if (count($data) < 5 || empty(trim($data[0]))) {
                     continue;
                 }
                 $stmt->execute([
-                    'name' => $data[0],
-                    'job_title' => $data[1],
-                    'email' => $data[2],
-                    'phone' => $data[3],
-                    'extension' => $data[4],
+                    'name' => trim($data[0]),
+                    'job_title' => trim($data[1] ?? ''),
+                    'email' => trim($data[2] ?? ''),
+                    'phone' => trim($data[3] ?? ''),
+                    'extension' => trim($data[4] ?? ''),
                     'user_id' => Auth::user()['id'],
                 ]);
+                $imported++;
             }
             fclose($handle);
-            $message = 'Contactos importados correctamente.';
+            $message = "Contactos importados correctamente ($imported registros).";
+        } else {
+            $error = 'No se pudo abrir el archivo CSV.';
         }
     } else {
         $id = $_POST['id'] ?? null;
@@ -59,16 +68,16 @@ if ($canManage && is_post()) {
     }
 }
 
-if ($canManage && isset($_GET['action'], $_GET['id']) && $_GET['action'] === 'delete' && verify_csrf($_GET['token'] ?? '')) {
-    $stmt = $conn->prepare('DELETE FROM contacts WHERE id = :id');
-    $stmt->execute(['id' => $_GET['id']]);
-    $message = 'Contacto eliminado.';
-}
-
-if ($canManage && isset($_GET['action'], $_GET['id']) && $_GET['action'] === 'edit') {
-    $stmt = $conn->prepare('SELECT * FROM contacts WHERE id = :id');
-    $stmt->execute(['id' => $_GET['id']]);
-    $editing = $stmt->fetch();
+if ($canManage && isset($_GET['action'], $_GET['id'])) {
+    if ($_GET['action'] === 'delete' && verify_csrf($_GET['token'] ?? '')) {
+        $stmt = $conn->prepare('DELETE FROM contacts WHERE id = :id');
+        $stmt->execute(['id' => $_GET['id']]);
+        $message = 'Contacto eliminado.';
+    } elseif ($_GET['action'] === 'edit' && verify_csrf($_GET['token'] ?? '')) {
+        $stmt = $conn->prepare('SELECT * FROM contacts WHERE id = :id');
+        $stmt->execute(['id' => $_GET['id']]);
+        $editing = $stmt->fetch();
+    }
 }
 
 $search = trim($_GET['q'] ?? '');
@@ -171,7 +180,7 @@ if ($search) {
                                 <td><?php echo htmlspecialchars($contact['extension']); ?></td>
                                 <?php if ($canManage): ?>
                                 <td class="text-end">
-                                    <a href="?module=directory&action=edit&id=<?php echo $contact['id']; ?>" class="btn btn-sm btn-outline-primary">Editar</a>
+                                    <a href="?module=directory&action=edit&id=<?php echo $contact['id']; ?>&token=<?php echo csrf_token(); ?>" class="btn btn-sm btn-outline-primary">Editar</a>
                                     <a href="?module=directory&action=delete&id=<?php echo $contact['id']; ?>&token=<?php echo csrf_token(); ?>" class="btn btn-sm btn-outline-danger" onclick="return confirm('¿Eliminar contacto?');">Eliminar</a>
                                 </td>
                                 <?php endif; ?>
