@@ -131,7 +131,24 @@ $today = date('Y-m-d');
                     </div>
                 </form>
             <?php else: ?>
-                <div class="alert alert-info">Solo los publicadores y administradores pueden crear eventos.</div>
+                <h5 class="mt-4 mb-3">Eventos de <?php echo htmlspecialchars($monthLabel); ?></h5>
+                <?php if (!empty($monthlyEvents)): ?>
+                    <div class="vstack gap-3">
+                        <?php foreach ($monthlyEvents as $event): ?>
+                            <div class="event-card p-3 border rounded">
+                                <div class="d-flex align-items-start gap-2 mb-2">
+                                    <span class="badge bg-primary"><?php echo format_date($event['date']); ?></span>
+                                </div>
+                                <h6 class="mb-2"><?php echo htmlspecialchars($event['title']); ?></h6>
+                                <?php if (!empty($event['description'])): ?>
+                                    <p class="text-muted small mb-0"><?php echo nl2br(htmlspecialchars($event['description'])); ?></p>
+                                <?php endif; ?>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                <?php else: ?>
+                    <div class="alert alert-info">No hay eventos programados para este mes.</div>
+                <?php endif; ?>
             <?php endif; ?>
         </div>
     </div>
@@ -145,45 +162,21 @@ $today = date('Y-m-d');
                     </div>
                     <a class="calendar-nav-btn" href="?module=calendar&month=<?php echo urlencode($nextMonth); ?>" aria-label="Mes siguiente">&rsaquo;</a>
                 </div>
-                <div class="calendar-weekdays">
-                    <?php foreach ($weekdays as $dayLabel): ?>
-                        <span><?php echo $dayLabel; ?></span>
-                    <?php endforeach; ?>
-                </div>
-                <div class="calendar-grid">
-                    <?php
-                    $cursor = clone $startOfGrid;
-                    for ($i = 0; $i < 42; $i++):
-                        $dateKey = $cursor->format('Y-m-d');
-                        $classes = [];
-                        if ($cursor->format('Y-m') !== $monthKey) {
-                            $classes[] = 'muted';
-                        }
-                        if ($dateKey === $today) {
-                            $classes[] = 'today';
-                        }
-                    ?>
-                    <div class="calendar-day <?php echo implode(' ', $classes); ?>">
-                        <span class="calendar-day-number"><?php echo $cursor->format('j'); ?></span>
-                        <?php if (!empty($eventsByDate[$dateKey])): ?>
-                            <?php foreach ($eventsByDate[$dateKey] as $eventItem): ?>
-                                <span class="calendar-event" title="<?php echo htmlspecialchars($eventItem['description']); ?>"><?php echo htmlspecialchars($eventItem['title']); ?></span>
-                            <?php endforeach; ?>
-                        <?php endif; ?>
-                    </div>
-                    <?php
-                        $cursor->modify('+1 day');
-                    endfor;
-                    ?>
-                </div>
                 <div class="calendar-events-list">
                     <h6 class="text-uppercase small fw-semibold text-danger mb-3">Eventos del mes</h6>
                     <ul class="list-unstyled mb-0">
                         <?php foreach ($monthlyEvents as $event): ?>
                             <li class="calendar-events-item">
-                                <div>
-                                    <span class="calendar-events-date"><?php echo format_date($event['date']); ?></span>
-                                    <span class="calendar-events-title"><?php echo htmlspecialchars($event['title']); ?></span>
+                                <div class="event-content">
+                                    <div class="d-flex align-items-start gap-3 mb-2">
+                                        <span class="calendar-events-date"><?php echo format_date($event['date']); ?></span>
+                                        <div class="flex-grow-1">
+                                            <div class="calendar-events-title fw-semibold mb-1"><?php echo htmlspecialchars($event['title']); ?></div>
+                                            <?php if (!empty($event['description'])): ?>
+                                                <div class="calendar-events-description text-muted small"><?php echo nl2br(htmlspecialchars($event['description'])); ?></div>
+                                            <?php endif; ?>
+                                        </div>
+                                    </div>
                                 </div>
                                 <?php if ($canManage): ?>
                                 <div class="calendar-event-actions">

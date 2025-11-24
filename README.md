@@ -5,7 +5,7 @@ Intranet Corporativa modular desarrollada con PHP nativo siguiendo una arquitect
 ## Características
 
 - 🔐 **Autenticación segura** con hashing Bcrypt y protección CSRF.
-- 👥 **Control de roles** (Administrador Principal, Publicador, Usuario Final).
+- 👥 **Control de roles** (Administrador, Publicador, Usuario Final).
 - 📅 **Calendario de eventos** estilo Google Calendar.
 - 📇 **Directorio corporativo** con importación CSV.
 - 📰 **Tablón de anuncios** con soporte de imágenes y texto enriquecido (negritas).
